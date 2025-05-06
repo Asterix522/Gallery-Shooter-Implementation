@@ -39,6 +39,13 @@ class TinyTown extends Phaser.Scene {
         this.load.image("right2", "player_18.png");
         this.load.image("right3", "player_17.png");
         this.load.image("shoot", "player_08.png");
+
+        this.load.audio('aw_man', 'aw_man.wav');
+        this.load.audio('ouch', 'ouch_voice.wav');
+        this.load.audio('nice', 'nice_voice.wav');
+        this.load.audio('squeak', 'squeak.wav');
+        this.load.audio('eugh', 'eugh.wav');
+        this.load.audio('spray_bottle', 'spray_bottle.wav');
     }
 
     create() {
@@ -51,6 +58,13 @@ class TinyTown extends Phaser.Scene {
         this.floorLayer = this.map.createLayer("Cabinets", this.tileset, 0, 0);
         this.baseLayer.setScale(4.0);
         this.floorLayer.setScale(4.0);
+
+        this.awManSound = this.sound.add('aw_man');
+        this.ouchSound = this.sound.add('ouch');
+        this.niceSound = this.sound.add('nice');
+        this.squeak = this.sound.add('squeak');
+        this.eugh = this.sound.add('eugh');
+        this.spray_bottle = this.sound.add('spray_bottle');
 
         // Create player
         this.player = this.physics.add.sprite(
@@ -122,7 +136,7 @@ class TinyTown extends Phaser.Scene {
         });
         this.livesText.setScrollFactor(0);
 
-        this.levelText= this.add.text(450, 20, 'Level: 1 \nGoal: ' + this.goal, {
+        this.levelText= this.add.text(450, 20, 'Level: 1 \nGoal: $' + this.goal, {
             fontSize: '32px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -182,6 +196,7 @@ class TinyTown extends Phaser.Scene {
             this.roachSpawnDelay = Phaser.Math.Between(6000, 10000) * this.increment;
         }
 
+        //level up
         if (this.money >= this.goal){
             this.levelUp();
             this.increment = this.increment * .8; // spawn sooner;
@@ -216,8 +231,9 @@ class TinyTown extends Phaser.Scene {
 
     levelUp(){
         this.level++;
+        this.niceSound.play();
         this.goal = (this.goal * 1.5 | 0);
-        this.levelText.setText('Level: ' + this.level + '\nGoal: ' + this.goal);
+        this.levelText.setText('Level: ' + this.level + '\nGoal: $' + this.goal);
         this.lives = 3;
         this.money = 0;
         this.moneyText.setText('$' + this.money);
@@ -236,7 +252,10 @@ class TinyTown extends Phaser.Scene {
         console.log('lost a life');
         if (this.lives <= 0) {
             this.gameOver();
+        }else{
+            this.ouchSound.play();
         }
+        
     }
 
     spawnRoach() {
@@ -272,8 +291,10 @@ class TinyTown extends Phaser.Scene {
         pellet.destroy();
         enemy.destroy();
         if (enemy.texture.key === 'mouse') {
+            this.squeak.play();
             this.addMoney(15);
         } else if (enemy.texture.key === 'roach') {
+            this.eugh.play();
             this.addMoney(25); // More money for roaches
         }
     }
@@ -293,12 +314,13 @@ class TinyTown extends Phaser.Scene {
     }
 
     shootPellet() {
+        this.spray_bottle.play();
         const pellet = this.add.sprite(
             this.player.x,
             this.player.y - this.player.displayHeight/2,
             'pellet'
         );
-        pellet.setScale(0.02);
+        pellet.setScale(.15);
         pellet.speed = 6; // Pixels per frame to move
         this.pellets.add(pellet);
     }
@@ -306,6 +328,7 @@ class TinyTown extends Phaser.Scene {
     gameOver() {
         // Stop all movement
     this.physics.pause();
+    this.awManSound.play();
     this.player.setTint(0xff0000);
     
     // Display game over text
