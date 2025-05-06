@@ -9,13 +9,17 @@ class TinyTown extends Phaser.Scene {
         this.currentWalkFrame = 0;
         this.shootCooldown = 500;
         this.lastShotTime = 0;
-        this.mouseSpawnDelay = 2000; // Time between mouse spawns in ms
+        this.mouseSpawnDelay = 1; // Time between mouse spawns in ms
         this.lastMouseSpawnTime = 0;
         this.mouseSpeed = 100; // Speed of mouse movement
         this.money = 0;
         this.roachSpawnDelay = 10000; // Time between roach spawns
         this.lastRoachSpawnTime = 0;
         this.lives = 3;
+        this.level = 1;
+        this.goal = 150;
+        this.increment = 1;
+        this.roachSpeed = 60;
         
     }
 
@@ -72,6 +76,8 @@ class TinyTown extends Phaser.Scene {
         this.enemies = this.physics.add.group();
         this.mice = this.physics.add.group(); // Specific group for mice
         this.roaches = this.physics.add.group();
+        this.cheeseProjectiles = this.physics.add.group();
+        this.roachProjectiles = this.physics.add.group();
 
         // Spawn initial roach
         this.time.delayedCall(2000, () => {
@@ -83,12 +89,6 @@ class TinyTown extends Phaser.Scene {
             this.handleEnemyHit(pellet, enemy);
         });
 
-        // Make sure pellets don't collide with each other
-        this.physics.add.collider(this.pellets, this.pellets, () => {});
-
-        // Add cheese group
-        this.cheeseProjectiles = this.physics.add.group();
-        
 
         // Add collider for cheese hitting player
         this.physics.add.collider(this.player, this.cheeseProjectiles, (player, cheese) => {
@@ -98,8 +98,6 @@ class TinyTown extends Phaser.Scene {
             
         });
         
-
-        this.roachProjectiles = this.physics.add.group();
         this.physics.add.collider(this.player, this.roachProjectiles, (player, roach) => {
             roach.destroy();
             this.takeDamage();
@@ -123,6 +121,15 @@ class TinyTown extends Phaser.Scene {
             padding: { x: 10, y: 5 }
         });
         this.livesText.setScrollFactor(0);
+
+        this.levelText= this.add.text(450, 20, 'Level: 1 \nGoal: ' + this.goal, {
+            fontSize: '32px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        this.levelText.setScrollFactor(0);
 
     }
 
@@ -165,14 +172,36 @@ class TinyTown extends Phaser.Scene {
         if (time > this.lastMouseSpawnTime + this.mouseSpawnDelay) {
             this.spawnMouse();
             this.lastMouseSpawnTime = time;
-            this.mouseSpawnDelay = Phaser.Math.Between(1000, 3000);
+            this.mouseSpawnDelay = Phaser.Math.Between(2000, 4000) * this.increment;
         }
 
         //spawn roaches
         if (time > this.lastRoachSpawnTime + this.roachSpawnDelay) {
             this.spawnRoach();
             this.lastRoachSpawnTime = time;
-            this.roachSpawnDelay = Phaser.Math.Between(6000, 10000);
+            this.roachSpawnDelay = Phaser.Math.Between(6000, 10000) * this.increment;
+        }
+
+        if (this.money >= this.goal){
+            this.levelUp();
+            this.increment = this.increment * .8; // spawn sooner;
+            this.mouseSpeed = this.mouseSpeed * 1.2; //mouse go fast
+            this.roachSpeed = this.roachSpeed * 1.2; //roach go fast
+            this.mice.getChildren().forEach(mouse => {
+                mouse.destroy();
+            });
+    
+            this.roaches.getChildren().forEach(roach => {
+                roach.destroy();
+            });
+
+            this.cheeseProjectiles.getChildren().forEach(cheese => {
+                cheese.destroy();
+            });
+
+            this.roachProjectiles.getChildren().forEach(cheese => {
+                cheese.destroy();
+            })
         }
 
         //update mice movement
@@ -183,6 +212,16 @@ class TinyTown extends Phaser.Scene {
         this.roaches.getChildren().forEach(roach => {
             roach.update();
         });
+    }
+
+    levelUp(){
+        this.level++;
+        this.goal = (this.goal * 1.5 | 0);
+        this.levelText.setText('Level: ' + this.level + '\nGoal: ' + this.goal);
+        this.lives = 3;
+        this.money = 0;
+        this.moneyText.setText('$' + this.money);
+        this.livesText.setText('Lives: ' + this.lives);
     }
 
     addMoney(amount) {
@@ -204,7 +243,7 @@ class TinyTown extends Phaser.Scene {
         // Spawn at top center
         const x = this.game.config.width / 2;
         const y = 50; // Top of screen
-        const speed = 100; // Add this line to define the speed
+        const speed = this.roachSpeed; // Add this line to define the speed
     
         const roach = new Roach(this, x, y, speed); // Pass the speed parameter
         this.roaches.add(roach);
@@ -296,7 +335,6 @@ class TinyTown extends Phaser.Scene {
         }
     );
     restartText.setOrigin(0.5);
-    
     // Set up restart key
     this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.keyR.on('down', () => {
@@ -330,15 +368,15 @@ class Mouse extends Phaser.Physics.Arcade.Sprite {
         
         // Check if reached center (width/2) and hasn't thrown cheese yet
         if (!this.hasThrownCheese && 
-            ((this.direction === 1 && this.x >= this.scene.game.config.width / 2) ||
-             (this.direction === -1 && this.x <= this.scene.game.config.width / 2))) {
+            ((this.direction === 1 && this.x >= this.scene.game.config.width * .75) ||
+             (this.direction === -1 && this.x <= this.scene.game.config.width * .25))) {
             this.throwCheese();
             this.hasThrownCheese = true;
         }
         
         // Remove if out of bounds
-        if ((this.direction === 1 && this.x < -this.displayWidth) || 
-            (this.direction === -1 && this.x > this.scene.game.config.width + this.displayWidth)) {
+        if ((this.direction === 1 && this.x >= this.scene.game.config.width - 30) || 
+            (this.direction === -1 && this.x <= this.scene.game.config.width - 600)) {
             this.destroy();
         }
     }
@@ -381,22 +419,20 @@ class Mouse extends Phaser.Physics.Arcade.Sprite {
 }
 
 class Roach extends Phaser.Physics.Arcade.Sprite {
-    constructor(scene, x, y, turnCount = 0) {
+    constructor(scene, x, y, rSpeed) {
         super(scene, x, y, 'roach');
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
         this.setScale(0.5);
-        this.verticalSpeed = 60;
-        this.horizontalSpeed = 60;
+        this.verticalSpeed = rSpeed;
+        this.horizontalSpeed = rSpeed;
         this.isDead = false;
         this.moveDirection = Phaser.Math.Between(0, 1) ? 1 : -1;
         this.directionChangeTimer = 0;
         this.directionChangeInterval = 10;
         this.turnAngle = 0;
         this.maxRotation = 25;
-        this.turnCount = turnCount;
-        this.willSplit = (turnCount < 2); // Can split if less than 2 turns
         this.hasSplit = false;
         
         // Enable physics body
@@ -412,17 +448,6 @@ class Roach extends Phaser.Physics.Arcade.Sprite {
         if (this.directionChangeTimer >= this.directionChangeInterval) {
             this.directionChangeTimer = 0;
             
-            // Only count turns if we're allowed to split
-            if (this.willSplit) {
-                this.turnCount++;
-                
-                // Split after exactly 2 direction changes
-                if (this.turnCount >= 2 && !this.hasSplit) {
-                    this.splitIntoThree();
-                    this.hasSplit = true;
-                    return; // Exit early since we're destroying this roach
-                }
-            }
             
             // Normal direction change
             this.moveDirection *= -1;
@@ -452,14 +477,7 @@ class Roach extends Phaser.Physics.Arcade.Sprite {
             this.splitIntoThree();
             this.die();
         }
-        
-        // Player collision
-        if (this.scene && this.scene.player && 
-            this.scene.physics.overlap(this, this.scene.player)) {
-            console.log('hit player with roach');
-            this.die();
-        }
-        
+      
         // Bottom boundary
         if (this.y > this.scene.game.config.height + this.displayHeight) {
             this.destroy();
@@ -523,20 +541,8 @@ class Roach extends Phaser.Physics.Arcade.Sprite {
                 }
             );
             
-            // Add collision with player
-            this.scene.physics.add.overlap(
-                roach,
-                this.scene.player,
-                () => {
-                    
-                    console.log('Player hit by split roach!');
-                    roach.destroy();
-                    // Add player damage logic here
-                }
-            );
         });
         
-        // Destroy the original roach
         this.die();
     }
 
