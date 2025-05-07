@@ -1,1 +1,3 @@
-I'll edit this later... shout out kenny assets
+shout out kenny assets
+
+Play as a broke exterminator by spraying rats and cockroaches.
